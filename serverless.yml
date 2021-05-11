@@ -1,0 +1,62 @@
+
+plugins:
+  - serverless-python-requirements
+  - serverless-iam-roles-per-function
+  - serverless-dotenv-plugin
+
+custom:
+  pythonRequirements:
+    slim: true
+    layer: true
+    dockerizePip: non-linux
+
+
+service: team3-etl
+useDotenv: true
+frameworkVersion: '2'
+provider:
+  name: aws
+  runtime: python3.7
+  lambdaHashingVersion: 20201221
+  stage: dev
+  region: eu-west-1
+  vpc:
+    securityGroupIds:
+      - sg-08915876469706265
+    subnetIds:
+      - subnet-0abef5f20cc40db46  
+  iam:
+    role: arn:aws:iam::505617246107:role/team-3-execution-role
+
+
+package:
+  individually: false
+  include:
+    - src/team3etl/**
+    - src/__init__.py
+    - src/loading.py
+    - src/sql_script.py
+    - src/trail.py
+    - requirements.txt
+  exclude:
+    - src/__pycache__/**
+    - src/.pytest_cache/**
+    - src/.venv/**
+    - "*"
+    - "*/**"
+
+
+functions:
+  team3-etl: 
+    handler: src/team3etl/handler.handle
+    timeout: 900
+    role: arn:aws:iam::505617246107:role/team-3-execution-role
+    layers: 
+      - !Ref PythonRequirementsLambdaLayer
+    events:
+      - s3:
+          bucket: delon2-team-3-cafe-transactions
+          event: s3:ObjectCreated:*
+          rules:
+            - suffix: .csv
+    reservedConcurrency: 1
